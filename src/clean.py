@@ -100,9 +100,11 @@ def clean_hpsa():
                         fips_col = h
                     elif "county fips" in hl and "state" not in hl and fips_col is None:
                         county_fips_col = h
-                    if "hpsa score" in hl:
+                    # Match "HPSA Score" but not "HPSA Score Code" or "PC MCTA Score"
+                    if hl == "hpsa score":
                         severity_col = h
-                    if "hpsa status" in hl:
+                    # Match "HPSA Status" but not "HPSA Status Code"
+                    if hl == "hpsa status":
                         status_col = h
                     if "common county name" in hl or ("county" in hl and "name" in hl and "state" not in hl):
                         county_name_col = h
