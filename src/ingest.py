@@ -197,18 +197,17 @@ def fetch_fqhc_csv():
 
 
 def fetch_census_acs(api_key=None):
-    """Fetch Census ACS 5-year county data."""
-    if not api_key:
-        print("Skipping Census ACS (no API key). Set CENSUS_API_KEY env var.")
-        return {}
+    """Fetch Census ACS 5-year county data. Works with or without API key."""
 
     print("Fetching Census ACS data...")
     var_list = ",".join(["NAME"] + list(CENSUS_VARS.keys()))
-    url = (
+    # Census API works without a key for basic queries
+    base_url = (
         f"https://api.census.gov/data/2023/acs/acs5"
         f"?get={var_list}"
-        f"&for=county:*&key={api_key}"
+        f"&for=county:*"
     )
+    url = f"{base_url}&key={api_key}" if api_key else base_url
 
     try:
         req = Request(url, headers={"User-Agent": "HealthcareAccessGap/1.0"})
