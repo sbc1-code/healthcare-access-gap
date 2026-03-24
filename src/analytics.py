@@ -50,19 +50,25 @@ BORDER_FIPS = {
 
 
 def _ensure_db():
-    """Check DB exists. Auto-seed if processed data is available."""
-    if DB_PATH.exists():
-        try:
-            conn = duckdb.connect(str(DB_PATH), read_only=True)
-            count = conn.execute("SELECT COUNT(*) FROM counties").fetchone()[0]
-            conn.close()
-            if count > 0:
-                return True
-        except Exception:
-            pass
+    """Check DB exists and is current. Re-seed if JSON is newer than DB."""
+    if DB_PATH.exists() and PROCESSED_PATH.exists():
+        db_mtime = os.path.getmtime(DB_PATH)
+        json_mtime = os.path.getmtime(PROCESSED_PATH)
+        if json_mtime > db_mtime:
+            print("Processed data is newer than database. Re-seeding...")
+            DB_PATH.unlink()
+        else:
+            try:
+                conn = duckdb.connect(str(DB_PATH), read_only=True)
+                count = conn.execute("SELECT COUNT(*) FROM counties").fetchone()[0]
+                conn.close()
+                if count > 0:
+                    return True
+            except Exception:
+                pass
 
     if PROCESSED_PATH.exists():
-        print("Database not found. Auto-seeding from processed data...")
+        print("Auto-seeding from processed data...")
         from src.seed import seed
         seed()
         return DB_PATH.exists()
