@@ -133,16 +133,6 @@ st.markdown(f"""
         text-transform: uppercase;
         letter-spacing: 0.05em;
     }}
-    .metric-card .severity {{
-        font-size: 0.8rem;
-        font-weight: 600;
-        margin-top: 2px;
-    }}
-    .metric-card .context {{
-        font-size: 0.75rem;
-        color: {MUTED};
-        margin-top: 4px;
-    }}
     .quadrant-card {{
         background: {SURFACE};
         border: 1px solid {BORDER};
@@ -251,16 +241,22 @@ def load_state_summary():
 
 def metric_card(label, value, color=TEXT, severity="", severity_color="", context=""):
     """Render a styled metric card with optional severity label and context."""
-    severity_html = f'<div class="severity" style="color: {severity_color};">{severity}</div>' if severity else ""
-    context_html = f'<div class="context">{context}</div>' if context else ""
-    st.markdown(f"""
-    <div class="metric-card">
-        <div class="label">{label}</div>
-        <div class="value" style="color: {color};">{value}</div>
-        {severity_html}
-        {context_html}
-    </div>
-    """, unsafe_allow_html=True)
+    severity_html = (
+        f'<div style="font-size:0.8rem;font-weight:600;margin-top:2px;color:{severity_color};">'
+        f'{severity}</div>'
+    ) if severity else ""
+    context_html = (
+        f'<div style="font-size:0.75rem;color:{MUTED};margin-top:4px;">'
+        f'{context}</div>'
+    ) if context else ""
+    st.markdown(
+        f'<div class="metric-card">'
+        f'<div class="label">{label}</div>'
+        f'<div class="value" style="color:{color};">{value}</div>'
+        f'{severity_html}{context_html}'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
 
 
 def quadrant_card(quadrant_key, count):
