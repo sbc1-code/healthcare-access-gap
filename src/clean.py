@@ -231,7 +231,8 @@ def clean_cdc_places():
             "latitude": rec.get("latitude"),
             "longitude": rec.get("longitude"),
             "uninsured_pct": _safe_float(rec.get("ACCESS2")),
-            "no_checkup_pct": _safe_float(rec.get("CHECKUP")),
+            # CDC PLACES CHECKUP = % who HAD a checkup. Invert to get % WITHOUT.
+            "no_checkup_pct": round(100 - _safe_float(rec.get("CHECKUP")), 1) if _safe_float(rec.get("CHECKUP")) is not None else None,
             "depression_pct": _safe_float(rec.get("DEPRESSION")),
             "diabetes_pct": _safe_float(rec.get("DIABETES")),
             "obesity_pct": _safe_float(rec.get("OBESITY")),

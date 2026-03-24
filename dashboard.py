@@ -85,7 +85,7 @@ def access_label(score):
     elif score >= 50:
         return "Adequate access", OLIVE
     elif score >= 25:
-        return "Below average", ORANGE
+        return "Limited", ORANGE
     else:
         return "Very limited", TERRACOTTA
 
