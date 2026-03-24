@@ -57,6 +57,55 @@ QUADRANT_DESCRIPTIONS = {
 
 PLOTLY_CONFIG = {"displayModeBar": False}
 
+
+# ---------------------------------------------------------------------------
+# Score interpretation helpers
+# ---------------------------------------------------------------------------
+
+def need_label(score):
+    """Translate Need Score to plain language."""
+    if score is None:
+        return "N/A", MUTED
+    if score >= 75:
+        return "Very high need", TERRACOTTA
+    elif score >= 50:
+        return "High need", ORANGE
+    elif score >= 25:
+        return "Moderate need", GOLD
+    else:
+        return "Low need", GREEN
+
+
+def access_label(score):
+    """Translate Access Score to plain language."""
+    if score is None:
+        return "N/A", MUTED
+    if score >= 75:
+        return "Strong access", GREEN
+    elif score >= 50:
+        return "Adequate access", OLIVE
+    elif score >= 25:
+        return "Below average", ORANGE
+    else:
+        return "Very limited", TERRACOTTA
+
+
+def gap_label(score):
+    """Translate Gap Score to plain language."""
+    if score is None:
+        return "N/A", MUTED
+    if score > 40:
+        return "Critical gap", TERRACOTTA
+    elif score > 20:
+        return "Significant gap", ORANGE
+    elif score > 0:
+        return "Moderate gap", GOLD
+    elif score > -20:
+        return "Roughly balanced", OLIVE
+    else:
+        return "Access exceeds need", GREEN
+
+
 # ---------------------------------------------------------------------------
 # CSS
 # ---------------------------------------------------------------------------
@@ -83,6 +132,16 @@ st.markdown(f"""
         color: {MUTED};
         text-transform: uppercase;
         letter-spacing: 0.05em;
+    }}
+    .metric-card .severity {{
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-top: 2px;
+    }}
+    .metric-card .context {{
+        font-size: 0.75rem;
+        color: {MUTED};
+        margin-top: 4px;
     }}
     .quadrant-card {{
         background: {SURFACE};
@@ -190,12 +249,16 @@ def load_state_summary():
 # Helper functions
 # ---------------------------------------------------------------------------
 
-def metric_card(label, value, color=TEXT):
-    """Render a styled metric card."""
+def metric_card(label, value, color=TEXT, severity="", severity_color="", context=""):
+    """Render a styled metric card with optional severity label and context."""
+    severity_html = f'<div class="severity" style="color: {severity_color};">{severity}</div>' if severity else ""
+    context_html = f'<div class="context">{context}</div>' if context else ""
     st.markdown(f"""
     <div class="metric-card">
         <div class="label">{label}</div>
         <div class="value" style="color: {color};">{value}</div>
+        {severity_html}
+        {context_html}
     </div>
     """, unsafe_allow_html=True)
 
@@ -290,9 +353,9 @@ def get_recommendations(county_row):
 def render_overview():
     st.markdown("## Healthcare Access Gap Finder")
     st.markdown(
-        "Where are Americans not getting the care they need? "
-        "This tool maps the gap between health needs and access infrastructure "
-        "across every US county."
+        "Every US county scored on two questions: **How sick are residents?** (Need) "
+        "and **How much care infrastructure exists?** (Access). The gap between them "
+        "shows where people are falling through the cracks."
     )
 
     overview = load_overview()
@@ -302,16 +365,30 @@ def render_overview():
 
     row = overview.iloc[0]
 
-    # KPI cards
+    # KPI cards with plain-language context
+    need_sev, need_col = need_label(row['avg_need_score'])
+    access_sev, access_col = access_label(row['avg_access_score'])
+    total = int(row['total_counties'])
+    critical = int(row['critical_gap_count'])
+    pct_critical = round(critical / total * 100) if total > 0 else 0
+
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        metric_card("Counties Analyzed", f"{int(row['total_counties']):,}")
+        metric_card("Counties Analyzed", f"{total:,}",
+                     context="Every US county with available data")
     with c2:
-        metric_card("Avg Need Score", f"{row['avg_need_score']:.1f}", TERRACOTTA)
+        metric_card("Avg Need Score", f"{row['avg_need_score']:.0f} / 100",
+                     color=need_col, severity=need_sev, severity_color=need_col,
+                     context="Higher = sicker population")
     with c3:
-        metric_card("Avg Access Score", f"{row['avg_access_score']:.1f}", GREEN)
+        metric_card("Avg Access Score", f"{row['avg_access_score']:.0f} / 100",
+                     color=access_col, severity=access_sev, severity_color=access_col,
+                     context="Higher = more providers and clinics")
     with c4:
-        metric_card("Critical Gap Counties", f"{int(row['critical_gap_count']):,}", TERRACOTTA)
+        metric_card("Critical Gap Counties", f"{critical:,}",
+                     color=TERRACOTTA, severity=f"{pct_critical}% of all counties",
+                     severity_color=TERRACOTTA,
+                     context="High need + low access")
 
     st.markdown("---")
 
@@ -408,7 +485,10 @@ def render_overview():
 
 def render_explore():
     st.markdown("## Explore Counties")
-    st.markdown("Need Score (x-axis) vs Access Score (y-axis). Counties in the bottom-right are the highest priority.")
+    st.markdown(
+        "Each dot is a county. **Right side** = sicker populations. **Bottom** = less access to care. "
+        "Counties in the **bottom-right** need the most help."
+    )
 
     scatter_df = load_scatter()
     if scatter_df.empty:
@@ -569,29 +649,27 @@ def render_your_county():
 
     st.markdown("---")
 
-    # Score cards
+    # Score cards with plain-language labels
+    need = c.get("need_score", 0)
+    access = c.get("access_score", 0)
+    gap = c.get("gap_score", 0)
+    n_label, n_color = need_label(need)
+    a_label, a_color = access_label(access)
+    g_label, g_color = gap_label(gap)
+
     sc1, sc2, sc3 = st.columns(3)
     with sc1:
-        need = c.get("need_score", 0)
-        avg_need = na.get("avg_need", 50)
-        delta = round(need - avg_need, 1) if need and avg_need else None
-        st.metric("Need Score", f"{need:.1f}" if need else "N/A",
-                  delta=f"{delta:+.1f} vs avg" if delta is not None else None,
-                  delta_color="inverse")
+        metric_card("How sick is this county?", f"{need:.0f} / 100" if need else "N/A",
+                     color=n_color, severity=n_label, severity_color=n_color,
+                     context="Based on diabetes, obesity, depression, uninsured rate, and more")
     with sc2:
-        access = c.get("access_score", 0)
-        avg_access = na.get("avg_access", 50)
-        delta = round(access - avg_access, 1) if access and avg_access else None
-        st.metric("Access Score", f"{access:.1f}" if access else "N/A",
-                  delta=f"{delta:+.1f} vs avg" if delta is not None else None,
-                  delta_color="normal")
+        metric_card("How much care exists?", f"{access:.0f} / 100" if access else "N/A",
+                     color=a_color, severity=a_label, severity_color=a_color,
+                     context="Based on clinics, provider shortages, and insurance coverage")
     with sc3:
-        gap = c.get("gap_score", 0)
-        avg_gap = na.get("avg_gap", 0)
-        delta = round(gap - avg_gap, 1) if gap is not None and avg_gap is not None else None
-        st.metric("Gap Score", f"{gap:.1f}" if gap is not None else "N/A",
-                  delta=f"{delta:+.1f} vs avg" if delta is not None else None,
-                  delta_color="inverse")
+        metric_card("The gap", f"{gap:+.0f}" if gap is not None else "N/A",
+                     color=g_color, severity=g_label, severity_color=g_color,
+                     context="Positive = need exceeds access. Negative = well covered.")
 
     st.markdown("---")
 
