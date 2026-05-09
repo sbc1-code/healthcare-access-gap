@@ -9,6 +9,40 @@ A county-level analysis tool that maps the gap between health needs and healthca
 - Classifies counties into four quadrants: Well Served, At Risk, Strained, Critical Gap
 - Provides county-level detail with rule-based intervention recommendations
 
+## Methodology
+
+Composite scores use a weighted percentile-rank approach computed via DuckDB's `PERCENT_RANK` window function.
+
+### Need Score (weights sum to 100)
+
+| Indicator | Weight |
+|-----------|-------:|
+| Uninsured rate | 20 |
+| No annual checkup | 15 |
+| Mental health (poor mental health days) | 15 |
+| Diabetes prevalence | 15 |
+| Obesity prevalence | 10 |
+| Depression prevalence | 10 |
+| Physical health (poor physical health days) | 10 |
+| Preventive care (inverted) | 5 |
+
+### Access Score (weights sum to 100)
+
+| Component | Weight |
+|-----------|-------:|
+| HPSA severity | 40 |
+| FQHC density (per 100K) | 30 |
+| Insurance coverage | 30 |
+
+### Gap Score
+
+- `Gap = Need − Access` (same scale, subtraction preserves units)
+- Quadrants split at the 50/50 median: Well Served, At Risk, Strained, Critical Gap
+
+### Limitations of the Weighting
+
+The weights above are normative judgment calls, not regressed against an outcome variable. The next iteration is to tune weights against preventable hospitalization or mortality data.
+
 ## Why
 
 Public health dashboards typically show what is happening (prevalence rates, mortality) but not why it is happening or where to intervene. By layering HRSA shortage data and FQHC locations on top of CDC health measures, this tool surfaces the counties where the structural gap between need and access is widest, making it actionable for health systems, policymakers, and community organizations.
